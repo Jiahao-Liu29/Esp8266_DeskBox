@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <Script value="text/javascript">
+        function load() {
+            console.log("click");
+            // var pro = ['江苏省','浙江省','安徽省'];
+            // var city = [
+            //     ['南京市','苏州市','无锡市','徐州市'],
+            //     ['杭州市','宁波市','绍兴市','湖州市'],
+            //     ["合肥市","滁州市","芜湖市","宣城市"]
+            // ];
+            var data={
+                '河南省':['鹤壁市','漯河市','南阳市','三门峡市','商丘市','济源市','新乡市','信阳市','安阳市','洛阳市']
+            }
+
+            for(var i = 0; i < pro.length; i++)
+            {
+                var opt = document.createElement('option');
+                opt.value = i;
+                opt.text = pro[i];
+                document.getElementById('pro').appendChild(opt);
+            }
+
+            document.getElementById('pro').onchange = function() {
+                console.log("change");
+                document.getElementById('city').innerHTML = '<option value ="">请选择城市</option>';
+                    
+                var index = document.getElementById('pro').value;
+                
+                var cityList = city[index];
+                
+                for (var i = 0; i < cityList.length;i++){
+                    var opt = document.createElement('option');
+                    opt.value = i;
+                    opt.text = cityList[i];
+                    document.getElementById('city').appendChild(opt);
+                }
+            }
+        }
+    </Script>
+</head>
+<body>
+    <div>
+        <select name='' id='pro' onfocus="load()">
+            <option value="">请选择省份</option>
+        </select>
+
+        <select name='' id='city'>
+            <option value="">请选择城市</option>
+        </select>
+
+        <select name='' id='pro' onfocus="load()">
+            <option value="">请选择区/县</option>
+        </select>
+    </div>
+</body>
+</html>
