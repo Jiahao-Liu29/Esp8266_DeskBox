@@ -11,6 +11,8 @@
 #include <SPI.h>
 #include <TJpg_Decoder.h>
 #include <ArduinoJson.h>
+#include <PubSubClient.h>
+#include <WiFiClientSecure.h>
 
 #include "weathernum.h"
 
@@ -26,6 +28,8 @@
 #include "img/icon/icon_weath.h"
 #include "img/icon/icon_wifibmp.h"
 #include "img/icon/icon_set.h"
+#include "img/icon/icon_cpu.h"
+#include "img/icon/icon_flash.h"
 
 #define Version  "mySD V1.0.0"
 
@@ -120,6 +124,19 @@ uint16_t menu_flag = 0;
 #define SET_MENU      0x0004  // 设置界面
 #define SELECT_MENU   0x0008  // 设置子界面
 #define ISSAVE_MENU   0x0010  // 是否保存界面
+#define INFO_MENU     0x0020  // 系统信息界面
+
+/******************************* 产品/设备配置 ****************************************/
+#define PRODUCT_KEY "iym4xOYxNVB"
+#define DEVICE_NAME "ESP82661"
+#define MQTT_SERVER "iot-06z00gwmda9q68k.mqtt.iothub.aliyuncs.com"
+#define MQTT_PORT   1883
+#define MQTT_CLIENT_ID  PRODUCT_KEY "." DEVICE_NAME "|securemode=2,signmethod=hmacsha256,timestamp=1687767843838|"
+#define MQTT_USERNAME   DEVICE_NAME "&" PRODUCT_KEY
+#define MQTT_PASSWORD   "5f9f447a304ce35789b9a1e79ed1e5a9f0eb53962f359bc1e2d587519d795490"
+// 相关主题
+#define TOPIC1 "/" PRODUCT_KEY "/" DEVICE_NAME "/user/updataStatus"
+/*************************************************************************************/
 
 /* 获取天气信息 */
 void weatherInfoGet(WiFiClient client)
@@ -817,6 +834,63 @@ void mainDisplay(uint8_t enFlag)
   }
 } 
 
+/* 系统信息界面 */
+void systemInfo(void)
+{
+  // CPU 图标
+  TJpgDec.drawJpg(0, 40, icon_cpu, sizeof(icon_cpu));
+
+  // flash 图标
+  TJpgDec.drawJpg(0, 109, icon_flash, sizeof(icon_flash));
+
+  /* 数据显示 */
+  eSprite.loadFont(font_zhong25);
+
+  eSprite.createSprite(160, 64);
+  eSprite.setTextDatum(CL_DATUM);
+  eSprite.setTextColor(TFT_WHITE, TFT_BLACK);
+  eSprite.drawString("ESP8266", 5, 20);
+  eSprite.drawString(String(ESP.getCpuFreqMHz()) + " Mhz", 5, 50);
+  eSprite.pushSprite(64, 40);
+  eSprite.deleteSprite();
+
+  uint32_t sizeBin = 0;
+  uint32_t sizeSpaceBin = 0;
+  sizeBin = uint32_t(ESP.getSketchSize() / 1024); // 无符号32位整数返回当前固件大小
+  sizeSpaceBin = uint32_t(ESP.getFreeSketchSpace() / 1024); // 无符号32位整数的形式返回可用空闲固件空间
+
+  eSprite.createSprite(200, 64);
+  eSprite.setTextDatum(CL_DATUM);
+  eSprite.setTextColor(TFT_WHITE, TFT_BLACK);
+  eSprite.drawString(String(uint32_t(ESP.getFlashChipRealSize() / 1024)) + " KB", 5, 20);
+  eSprite.setTextColor(TFT_RED, TFT_BLACK);
+  eSprite.drawString(String(sizeBin), 5, 50);
+  eSprite.setTextColor(TFT_WHITE, TFT_BLACK);
+  eSprite.drawString("/", 17*String(sizeBin).length(), 50);
+  eSprite.setTextColor(TFT_BLUE, TFT_BLACK);
+  eSprite.drawString(String(sizeSpaceBin), 17*String(sizeBin).length() + 16, 50);
+  eSprite.setTextColor(TFT_WHITE, TFT_BLACK);
+  eSprite.drawString("KB", 17*String(sizeBin).length()+15+17*String(sizeSpaceBin).length(), 50);
+  eSprite.pushSprite(64, 109);
+  eSprite.deleteSprite();
+
+  eSprite.createSprite(100, 30);
+  eSprite.setTextDatum(CL_DATUM);
+  eSprite.setTextColor(TFT_WHITE, TFT_BLACK);
+  eSprite.drawString("亮度: " + String(LCD_BL_PWM), 5, 15);
+  eSprite.pushSprite(5, 178);
+  eSprite.deleteSprite();
+
+  eSprite.createSprite(180, 30);
+  eSprite.setTextDatum(CL_DATUM);
+  eSprite.setTextColor(TFT_WHITE, TFT_BLACK);
+  eSprite.drawString("更新周期: " + String(updateweater_time), 5, 15);
+  eSprite.pushSprite(5, 213);
+  eSprite.deleteSprite();
+
+  eSprite.unloadFont();
+}
+
 // 设置界面
 struct setMenuItem
 {
@@ -1320,15 +1394,23 @@ void menu_change(Button2& btn)
     menu_flag |= LOW_POWER;
     menu_flag &= ~SET_MENU;
     clockDisplay(1);
-  } else if (button_sw1Flag == 1)
+  } 
+  else if (button_sw1Flag == 1)
   {
     // 多功能界面
     menu_flag |= MAIN_MENU;
     menu_flag &= ~LOW_POWER;
-  } else if (button_sw1Flag == 2 && !(menu_flag & SET_MENU) && !(menu_flag & SELECT_MENU)) {
+  } 
+  else if (button_sw1Flag == 2) {
+    // 系统信息界面
+    menu_flag |= INFO_MENU;
+    menu_flag &= ~MAIN_MENU;
+    systemInfo();
+  }
+  else if (button_sw1Flag == 3 && !(menu_flag & SET_MENU) && !(menu_flag & SELECT_MENU)) {
     // 设置界面
     menu_flag |= SET_MENU;
-    menu_flag &= ~MAIN_MENU;
+    menu_flag &= ~INFO_MENU;
     TJpgDec.drawJpg(72, 72, icon_set, sizeof(icon_set));
     delay(1000);
     tft.fillScreen(TFT_BLACK);
@@ -1361,7 +1443,6 @@ void menu_change(Button2& btn)
   }
   else if (!(menu_flag & SET_MENU) || !(menu_flag & SELECT_MENU)) {
     button_sw1Flag++;
-    Serial.println(button_sw1Flag);
     // 达到最大菜单数
     // if (button_sw1Flag == menu_num) {
     //   button_sw1Flag = 0;
@@ -1429,6 +1510,104 @@ void exit_set(Button2& btn)
     indexnum = 0;
     movetime = 0;
   }
+}
+
+// 连接心跳函数
+void doWifiTick(void)
+{
+  static bool taskStarted = false;
+  static bool startSTAFlag = false;
+  static uint32_t lastWifiCheckTick = 0;
+
+  if (!startSTAFlag) {
+    startSTAFlag = true;
+    Serial.print(wificonf.stassid);
+    WiFi.begin(wificonf.stassid, wificonf.stapsw);
+    Serial.printf("Heap size: %d\r\n", ESP.getFreeHeap());
+  }
+
+  if (WiFi.status() != WL_CONNECTED) {
+    if(millis() - lastWifiCheckTick > 1000) {
+      lastWifiCheckTick = millis();
+      Serial.print(".");
+    }
+  } else {
+    if(taskStarted == false) {
+      taskStarted = true;
+      Serial.print("\r\nGet IP Address:");
+      Serial.println(WiFi.localIP());
+    }
+  }
+}
+
+/* MQTT 数据报解析 */
+void praseMqttResponse(char* payload)
+{
+  Serial.println("start praseMqttResponse");
+  StaticJsonDocument<200> doc;
+
+  deserializeJson(doc, payload);
+
+  String deviceName = doc["deviceId"];
+  int status = doc["s"];
+}
+
+/* MQTT 回调函数 */
+void mqtt_callback(char * topic, byte * payload, unsigned int length) {
+  byte *end = payload + length;
+  for (byte *p = payload; p < end; ++p) {
+    Serial.print(*((const char *)p));
+  }
+  Serial.println("");
+  praseMqttResponse((char *)payload);
+}
+
+PubSubClient mqttclient(MQTT_SERVER, MQTT_PORT, &mqtt_callback, wifiClient);
+
+/* 错误返回函数 */
+const __FlashStringHelper* connectErrorToString(int8_t code)
+{
+  switch (code)
+  {
+  case 1: return F("The Server does not support...");
+  case 2: return F("The Client identifier...");
+  case 3: return F("The MQTT service ...");
+  case 4: return F("The data in the user...");
+  case 5: return F("Not authorized to connect");
+  case 6: return F("Exceeded ...");
+  case 7: return F("You huve...");
+  case -1: return F("Connection failed");
+  case -2: return F("Failed to subscribe");
+  case -3: return F("Connection");
+  case -4: return F("Connection Timeout");
+  
+  default:  return F("Unkown error");
+  }
+}
+
+/* MQTT 连接函数 */
+void connectToMqtt(void) {
+  if(mqttclient.connected()) {
+    return;
+  }
+
+  Serial.print(F("connecting to MQTT..."));
+
+  uint8_t retries = 3;
+
+  while (!mqttclient.connect(MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD)) {
+    Serial.println(connectErrorToString(mqttclient.state()));
+    Serial.println(F("retying MQTT "));
+    mqttclient.disconnect();
+    delay(5000);
+    retries--;
+    if(retries == 0) {
+      while (1);
+    }
+    yield();
+  }
+  Serial.println("successed");
+  mqttclient.subscribe(TOPIC1);
 }
 
 void setup() {
@@ -1501,8 +1680,8 @@ void setup() {
 
   weaterTime = hour(); // 天气更新标志赋值
 
-  menu_flag |= SET_MENU; // 状态机赋值
-  button_sw1Flag = 3;     // 按键标志赋值
+  menu_flag |= INFO_MENU; // 状态机赋值
+  button_sw1Flag = 2;     // 按键标志赋值
 
   tft.fillScreen(TFT_BLACK);//清屏
 
@@ -1512,6 +1691,12 @@ void setup() {
 }
  
 void loop() {
+  ESP.wdtFeed();
+  // doWifiTick();
+  // if (WiFi.status() == WL_CONNECTED) {
+  //   connectToMqtt();
+  //   mqttclient.loop();
+  // }
   tft_reflash();
   Button_sw1.loop(); //按钮轮询
   Button_UP.loop();
