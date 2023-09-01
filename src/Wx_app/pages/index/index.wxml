@@ -1,0 +1,38 @@
+<!--index.wxml-->
+<view class="container">
+  <view class="page-body">
+    <view class="connect">
+        <image class="top-img" src="../../img/MQTT.png"></image>
+        <view>{{nowTime}}</view>
+        <view class="connect-info">
+          <view class="connect-text wx:if='{{connectStatus?'isconnect-text':'noconnect-text'}}'">{{connectText}}</view>
+          <switch bindchange="switchFlag"></switch>
+        </view>
+    </view>
+    <view class="line"></view>
+    
+    <!-- 设备详情 -->
+    <view class="device-info" wx:if="{{deviceShowFlag}}">
+
+      <block wx:for="{{deviceState}}" wx:for-index="idx" wx:for-item="item" wx:key="key">
+        <view class="device-box" bindtap="device_page">
+          <view class="device-title">
+            <view class="device-name">{{item.deviceName}}</view>
+            <view class="status-box">
+              <view class="device-status wx:if='{{item.status == 'OFFLINE' ? 'device-offline' : 'device-online'}}'"></view>
+              <!-- 离线 -->
+              <view class="device-status-text" wx:if="{{item.status == 'OFFLINE'}}">离线</view>
+              <!-- 在线 -->
+              <view class="device-status-text" wx:else>在线</view>
+            </view>
+          </view>
+          <view class="info-set">
+            <view class="device-time">上次在线：{{item.lastOnlineTime}}</view>
+            <image class="device-img" src="../../img/data.png" mode=""/>
+          </view>
+        </view>
+      </block>
+
+    </view>
+  </view>
+</view>

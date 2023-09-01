@@ -13,6 +13,7 @@
 #include <ArduinoJson.h>
 #include <PubSubClient.h>
 #include <WiFiClientSecure.h>
+#include <WiFiClient.h>
 
 #include "weathernum.h"
 
@@ -1680,8 +1681,8 @@ void setup() {
 
   weaterTime = hour(); // 天气更新标志赋值
 
-  menu_flag |= INFO_MENU; // 状态机赋值
-  button_sw1Flag = 2;     // 按键标志赋值
+  menu_flag |= LOW_POWER; // 状态机赋值
+  button_sw1Flag = 1;     // 按键标志赋值
 
   tft.fillScreen(TFT_BLACK);//清屏
 
